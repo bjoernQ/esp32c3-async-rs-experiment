@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(generic_associated_types)]
+#![feature(const_option)]
+#![feature(const_pin)]
 
 mod async_hal;
 mod executor;
@@ -17,12 +19,24 @@ use esp_backtrace as _;
 use esp_println::println;
 use riscv_rt::entry;
 
-use crate::executor::run_to_completion;
+use crate::executor::{Executor, ROOT_EXECUTOR};
 
 #[entry]
 fn main() -> ! {
     println!("Hello!");
-    run_to_completion(async_main());
+
+    let mut task = async {
+        async_main().await;
+    };
+
+    let y: &mut dyn futures::Future<Output = ()> = &mut task;
+    let x: &'static mut dyn futures::Future<Output = ()> = unsafe { core::mem::transmute(y) };
+    let executor = Executor::new(x);
+    unsafe {
+        ROOT_EXECUTOR = Some(executor);
+        ROOT_EXECUTOR.as_mut().unwrap().run_to_completion();
+    }
+
     println!("That's it!");
 
     loop {}

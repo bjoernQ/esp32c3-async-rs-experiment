@@ -42,7 +42,7 @@ where
         interrupt::set_priority(
             Cpu::ProCpu,
             interrupt::CpuInterrupt::Interrupt3,
-            interrupt::Priority::Priority1,
+            interrupt::Priority::Priority3,
         );
 
         AsyncPin { pin, number }
