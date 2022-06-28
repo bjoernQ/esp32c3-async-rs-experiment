@@ -1,9 +1,6 @@
 use core::task::{Context, Poll, Waker};
 
-use esp32c3_hal::ehal::digital::v2::InputPin;
-use esp32c3_hal::interrupt;
-use esp32c3_hal::Cpu;
-use esp_println::println;
+use esp32c3_hal::{ehal::digital::v2::InputPin, interrupt, Cpu};
 use heapless::FnvIndexMap;
 
 #[derive(Debug, Clone)]
@@ -25,10 +22,10 @@ where
 
 impl<P> AsyncPin<P>
 where
-    P: InputPin,
+    P: InputPin + esp_hal_common::Pin,
 {
     // we should have a function to know the pin number
-    pub fn from_pin(pin: P, number: u8) -> AsyncPin<P> {
+    pub fn from_pin(pin: P) -> AsyncPin<P> {
         interrupt::enable(
             Cpu::ProCpu,
             esp32c3_hal::pac::Interrupt::GPIO,
@@ -44,6 +41,8 @@ where
             interrupt::CpuInterrupt::Interrupt3,
             interrupt::Priority::Priority1,
         );
+
+        let number = pin.number();
 
         AsyncPin { pin, number }
     }
