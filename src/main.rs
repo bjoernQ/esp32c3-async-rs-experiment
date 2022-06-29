@@ -34,6 +34,7 @@ async fn async_main() {
     let peripherals = Peripherals::take().unwrap();
     let system = peripherals.SYSTEM.split();
     let _clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
     let mut rtc_cntl = RtcCntl::new(peripherals.RTC_CNTL);
     let mut timer0 = Timer::new(peripherals.TIMG0);
     let mut timer1 = Timer::new(peripherals.TIMG1);
@@ -46,13 +47,10 @@ async fn async_main() {
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
 
     let boot_button = io.pins.gpio9.into_pull_down_input();
-    let boot_button = AsyncPin::from_pin(boot_button, 9);
-    //handle_boot_button(boot_button).await;
+    let boot_button = AsyncPin::from_pin(boot_button);
 
     let io1_button = io.pins.gpio1.into_pull_down_input();
-    let io1_button = AsyncPin::from_pin(io1_button, 1);
-
-    //handle_second_button(io1_button).await;
+    let io1_button = AsyncPin::from_pin(io1_button);
 
     futures::join!(
         handle_boot_button(boot_button),
