@@ -1,6 +1,9 @@
 use core::task::{Context, Poll, Waker};
 
-use esp32c3_hal::{ehal::digital::v2::InputPin, interrupt, Cpu};
+use esp32c3_hal::interrupt::Priority;
+use esp32c3_hal::macros::interrupt;
+use esp32c3_hal::pac;
+use esp32c3_hal::{ehal::digital::v2::InputPin, interrupt, pac::Interrupt, Cpu};
 use heapless::FnvIndexMap;
 
 #[derive(Debug, Clone)]
@@ -26,21 +29,7 @@ where
 {
     // we should have a function to know the pin number
     pub fn from_pin(pin: P) -> AsyncPin<P> {
-        interrupt::enable(
-            Cpu::ProCpu,
-            esp32c3_hal::pac::Interrupt::GPIO,
-            interrupt::CpuInterrupt::Interrupt3,
-        );
-        interrupt::set_kind(
-            Cpu::ProCpu,
-            interrupt::CpuInterrupt::Interrupt3,
-            interrupt::InterruptKind::Level,
-        );
-        interrupt::set_priority(
-            Cpu::ProCpu,
-            interrupt::CpuInterrupt::Interrupt3,
-            interrupt::Priority::Priority1,
-        );
+        interrupt::enable(Interrupt::GPIO, Priority::Priority1).unwrap();
 
         let number = pin.number();
 
@@ -109,7 +98,17 @@ where
         Self: 'a;
 
     fn wait_for_rising_edge<'a>(&'a mut self) -> Self::WaitForRisingEdgeFuture<'a> {
-        todo!()
+        riscv::interrupt::free(|_cs| unsafe {
+            let awaiting = AwaitingPin {
+                number: self.number,
+                signaled: 0,
+                waker: None,
+            };
+
+            AWAITING.insert(self.number, awaiting).unwrap();
+        });
+        self.pin.listen(esp_hal_common::Event::RisingEdge);
+        Signal::new(self.number)
     }
 
     type WaitForFallingEdgeFuture<'a>  = Signal
@@ -117,7 +116,17 @@ where
         Self: 'a;
 
     fn wait_for_falling_edge<'a>(&'a mut self) -> Self::WaitForFallingEdgeFuture<'a> {
-        todo!()
+        riscv::interrupt::free(|_cs| unsafe {
+            let awaiting = AwaitingPin {
+                number: self.number,
+                signaled: 0,
+                waker: None,
+            };
+
+            AWAITING.insert(self.number, awaiting).unwrap();
+        });
+        self.pin.listen(esp_hal_common::Event::FallingEdge);
+        Signal::new(self.number)
     }
 
     type WaitForAnyEdgeFuture<'a>  = Signal
@@ -125,7 +134,17 @@ where
         Self: 'a;
 
     fn wait_for_any_edge<'a>(&'a mut self) -> Self::WaitForAnyEdgeFuture<'a> {
-        todo!()
+        riscv::interrupt::free(|_cs| unsafe {
+            let awaiting = AwaitingPin {
+                number: self.number,
+                signaled: 0,
+                waker: None,
+            };
+
+            AWAITING.insert(self.number, awaiting).unwrap();
+        });
+        self.pin.listen(esp_hal_common::Event::AnyEdge);
+        Signal::new(self.number)
     }
 }
 
@@ -168,8 +187,8 @@ impl futures::Future for Signal {
     }
 }
 
-#[no_mangle]
-pub fn interrupt3() {
+#[interrupt]
+fn GPIO() {
     let mut waker_to_call = None;
     riscv::interrupt::free(|_cs| unsafe {
         let intrs = (*esp32c3_hal::pac::GPIO::PTR).pcpu_int.read().bits();

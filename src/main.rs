@@ -9,9 +9,10 @@ use embedded_hal_1 as embedded_hal;
 
 use async_hal::AsyncPin;
 use embedded_hal_async::digital::Wait;
+use esp32c3_hal::interrupt;
 use esp32c3_hal::{
-    clock::ClockControl, ehal::digital::v2::InputPin, pac::Peripherals, prelude::*, RtcCntl, Timer,
-    IO,
+    clock::ClockControl, ehal::digital::v2::InputPin, pac::Peripherals, prelude::*,
+    timer::TimerGroup, RtcCntl, IO,
 };
 use esp_backtrace as _;
 use esp_println::println;
@@ -33,16 +34,16 @@ async fn async_main() {
 
     let peripherals = Peripherals::take().unwrap();
     let system = peripherals.SYSTEM.split();
-    let _clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
     let mut rtc_cntl = RtcCntl::new(peripherals.RTC_CNTL);
-    let mut timer0 = Timer::new(peripherals.TIMG0);
-    let mut timer1 = Timer::new(peripherals.TIMG1);
+    let mut timer0 = TimerGroup::new(peripherals.TIMG0, &clocks);
+    let mut timer1 = TimerGroup::new(peripherals.TIMG1, &clocks);
 
     rtc_cntl.set_super_wdt_enable(false);
-    rtc_cntl.set_wdt_enable(false);
-    timer0.disable();
-    timer1.disable();
+    rtc_cntl.set_wdt_global_enable(false);
+    timer0.wdt.disable();
+    timer1.wdt.disable();
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
 
@@ -65,7 +66,7 @@ where
     P: InputPin + esp_hal_common::Pin,
 {
     loop {
-        button.wait_for_low().await.unwrap();
+        button.wait_for_falling_edge().await.unwrap();
         println!("Boot button pressed!");
     }
 }
@@ -75,7 +76,7 @@ where
     P: InputPin + esp_hal_common::Pin,
 {
     loop {
-        button.wait_for_high().await.unwrap();
+        button.wait_for_rising_edge().await.unwrap();
         println!("Button on IO1 pressed!");
     }
 }

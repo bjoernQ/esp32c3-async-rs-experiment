@@ -12,7 +12,7 @@ where
         unsafe fn wake(p: *const ()) {
             wake_by_ref(p)
         }
-        unsafe fn wake_by_ref(p: *const ()) {
+        unsafe fn wake_by_ref(_p: *const ()) {
             // no-op
         }
         unsafe fn drop(_: *const ()) {
