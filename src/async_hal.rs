@@ -6,6 +6,19 @@ use esp32c3_hal::pac;
 use esp32c3_hal::{ehal::digital::v2::InputPin, interrupt, pac::Interrupt, Cpu};
 use heapless::FnvIndexMap;
 
+pub trait PinAsyncExt<P>
+where
+    P: InputPin + esp_hal_common::Pin,
+{
+    fn into_async(self) -> AsyncPin<P>;
+}
+
+impl<T: InputPin + esp_hal_common::Pin> PinAsyncExt<T> for T {
+    fn into_async(self) -> AsyncPin<T> {
+        AsyncPin::from_pin(self)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AwaitingPin {
     number: u8,

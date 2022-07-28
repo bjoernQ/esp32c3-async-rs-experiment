@@ -18,6 +18,7 @@ use esp_backtrace as _;
 use esp_println::println;
 use riscv_rt::entry;
 
+use crate::async_hal::PinAsyncExt;
 use crate::executor::run_to_completion;
 
 #[entry]
@@ -47,11 +48,8 @@ async fn async_main() {
 
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    let boot_button = io.pins.gpio9.into_pull_down_input();
-    let boot_button = AsyncPin::from_pin(boot_button);
-
-    let io1_button = io.pins.gpio1.into_pull_down_input();
-    let io1_button = AsyncPin::from_pin(io1_button);
+    let boot_button = io.pins.gpio9.into_pull_down_input().into_async();
+    let io1_button = io.pins.gpio1.into_pull_down_input().into_async();
 
     futures::join!(
         handle_boot_button(boot_button),
